@@ -289,7 +289,7 @@ df_state = df_state.groupby(['stateProvince', 'ano']).size().reset_index(name='c
 
 # Inicializar o aplicativo JupyterDash
 app = Dash(__name__)
-
+server = app.server
 # Layout do aplicativo
 app.layout = html.Div([
     dcc.Graph(id='treemap_brasil', figure=treemap_class_taxon),
