@@ -1,7 +1,7 @@
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import Dash, dcc, html, Input, Output
+from dash import Dash, dcc, html, Input, Output, dash_table
 
 def extrair_ano(cat_number):
     return int('20' + cat_number.split('-')[1][:2])
@@ -51,6 +51,24 @@ def calcula_condicional_ausentes_porcentagem(df, previous_level, current_level):
     conditioned_df = df[df[previous_level].notnull()]
     return (conditioned_df[current_level].isnull().sum() / len(conditioned_df)) * 100
 
+def create_brazil_bar_chart(df):
+    # df_agrupado = df.groupby(['stateProvince', 'ano']).size().reset_index(name='counts')
+
+    # Ordene os dados pelo ano
+    df_agrupado = df.sort_values(by='counts')
+
+    # Crie o gráfico de barras empilhadas
+    fig_brasil = px.bar(
+        df_agrupado,
+        color='stateProvince',
+        y='counts',
+        x='ano',
+        title='Contagem de Coletas por Estado no Brasil (Empilhado por Ano)',
+        labels={'counts': 'Contagem de Coletas', 'stateProvince': 'Estado', 'ano': 'Ano'},
+        barmode='stack'
+    )
+    return fig_brasil
+
 df = pd.read_csv('planilha_unificada.csv',low_memory=False)
 
 df['specie'] = df.apply(lambda row: row['genus'] + ' ' + row['specificEpithet'] if not pd.isna(row['genus']) and not pd.isna(row['specificEpithet']) else None, axis=1)
@@ -71,18 +89,11 @@ df_sem_brasil = df_paises[df_paises['country'] != 'Brasil']
 df_brasil = df_paises[df_paises['country'] == 'Brasil']
 df_sem_mg = df_brasil[df_brasil['stateProvince'] != 'Minas Gerais']
 
-
 treemap_class_taxon = px.treemap(df_treemap_classificacao, path=['kingdom','phylum', 'class','order','superfamily','family','subfamily','genus','specie'],color='order')
 treemap_class_taxon.update_layout(margin = dict(t=50, l=25, r=25, b=25))
 
 treemap_paises = px.treemap(df_paises, path=[px.Constant("world"), 'continent', 'country','stateProvince','county','locality'])
 treemap_paises.update_layout(margin = dict(t=50, l=25, r=25, b=25))
-
-treemap_sem_brasil = px.treemap(df_sem_brasil, path=[px.Constant("world"), 'continent', 'country','stateProvince','county','locality'])
-
-treemap_brasil = px.treemap(df_brasil, path=['country','stateProvince','county','locality'])
-
-treemap_sem_mg = px.treemap(df_sem_mg, path=['country','stateProvince','county','locality'])
 
 tax_levels = ['order', 'superfamily', 'family', 'subfamily', 'genus','subgenus','specie']
 area_empilhada_dict = {}
@@ -145,8 +156,6 @@ for tax in tax_levels:
     )
     histograma_tax_dict[tax] = hist_tax
 
-# df_ano_corri = df[df['year'].str.len() == 4]
-# df_ano_corri = df_ano_corri[df_ano_corri['year']!='2061']
 # Fazer um de linha para as coletas (só tem pra identificacao)
 linha_tax_dict = {}
 
@@ -195,7 +204,6 @@ valores_null_porcentagem = (df_percent_class.isnull().sum() / len(df_percent_cla
 
 grafico_valores_null = px.bar(valores_null_porcentagem)
 
-
 # Lista de níveis hierárquicos na ordem desejada
 taxon_levels = ['class','order', 'Coorte ou Supercoorte','superfamily', 'family','genus', 'specie']
 
@@ -212,9 +220,11 @@ for i in range(1, len(taxon_levels)):
 df_porcentagem_valores_ausentes = pd.DataFrame(list(porcentagem_valores_ausentes.items()), columns=['nivel', 'valor'])
 
 grafico_valores_null_dependente = px.bar(df_porcentagem_valores_ausentes,x='nivel',y='valor')
+
 df_tax_unicos = df[tax_levels].nunique()
 
 grafico_unicos_taxon = px.bar(df_tax_unicos)
+
 barras_coletores_dict = {}
 df_coletores = df.copy()
 df_coletores = df_coletores[['recordedBy','year','ano']]
@@ -233,6 +243,7 @@ barras_coletores_dict['year'] = grafico_barras_coletores_coleta
 
 grafico_barras_coletores_identificacao = px.bar(df_coletores_grouped_identificacao,x='ano',y='recordedBy')
 barras_coletores_dict['ano'] = grafico_barras_coletores_identificacao
+
 # Verificar os dados de cada um dos coletores
 barras_equipe_dict = {}
 df_filtrado_equipe = df_coletores[df_coletores['recordedBy'].str.contains('Equipe', na=False)]
@@ -253,73 +264,29 @@ barras_equipe_dict['ano'] = grafico_barras_equipe_identificacao
 
 barras_paises_dict = {}
 df_ano = df.copy()
+
 df_agrupado_cole = df_ano.groupby(['country', 'year']).size().reset_index(name='counts')
-df_agrupado = df_ano.groupby(['country', 'ano']).size().reset_index(name='counts')
+df_agrupado_iden = df_ano.groupby(['country', 'ano']).size().reset_index(name='counts')
+
 # Ordene os dados pelo ano
 df_agrupado_cole = df_agrupado_cole.sort_values(by='counts')
-df_agrupado = df_agrupado.sort_values(by='ano')
+df_agrupado_iden = df_agrupado_iden.sort_values(by='ano')
 
 # Crie o gráfico de barras empilhadas
-fig = px.bar(df_agrupado_cole, color='country', y='counts', x='year', title='Contagem de Coletas por País (Empilhado por Ano)',
+grafico_barras_paises = px.bar(df_agrupado_cole, color='country', y='counts', x='year', title='Contagem de Coletas por País (Empilhado por Ano)',
              labels={'counts': 'Contagem de Coletas', 'country': 'País', 'year': 'Ano'},
              barmode='stack')
-fig2 = px.bar(df_agrupado, color='country', y='counts', x='ano', title='Contagem de Coletas por País (Empilhado por Ano)',
-             labels={'counts': 'Contagem de Coletas', 'country': 'País', 'year': 'Ano'},
-             barmode='stack')
-
-barras_paises_dict['ano'] = fig2
-barras_paises_dict['year'] = fig
-
-barras_sem_brasil_dict = {}
-df_ano = df[df['country'] != 'Brasil']
-df_agrupado_cole = df_ano.groupby(['country', 'year']).size().reset_index(name='counts')
-df_agrupado = df_ano.groupby(['country', 'ano']).size().reset_index(name='counts')
-# Ordene os dados pelo ano
-df_agrupado_cole = df_agrupado_cole.sort_values(by='counts')
-df_agrupado = df_agrupado.sort_values(by='ano')
-
-# Crie o gráfico de barras empilhadas
-fig = px.bar(df_agrupado_cole, color='country', y='counts', x='year', title='Contagem de Coletas por País (Empilhado por Ano)',
-             labels={'counts': 'Contagem de Coletas', 'country': 'País', 'year': 'Ano'},
-             barmode='stack')
-fig2 = px.bar(df_agrupado, color='country', y='counts', x='ano', title='Contagem de Coletas por País (Empilhado por Ano)',
+grafico_barras_paises_ano = px.bar(df_agrupado_iden, color='country', y='counts', x='ano', title='Contagem de Coletas por País (Empilhado por Ano)',
              labels={'counts': 'Contagem de Coletas', 'country': 'País', 'year': 'Ano'},
              barmode='stack')
 
-barras_sem_brasil_dict['ano'] = fig2
-barras_sem_brasil_dict['year'] = fig
-fig
-df_ano = df.copy()
+barras_paises_dict['year'] = grafico_barras_paises
+barras_paises_dict['ano'] = grafico_barras_paises_ano
 
-df_ano = df_ano[df_ano['country'] == 'Brasil']
-df_agrupado = df_ano.groupby(['stateProvince', 'ano']).size().reset_index(name='counts')
+df_state = df.copy()
+df_state = df_state[df_state['country']=='Brasil']
+df_state = df_state.groupby(['stateProvince', 'ano']).size().reset_index(name='counts')
 
-# Ordene os dados pelo ano
-df_agrupado = df_agrupado.sort_values(by='counts')
-
-# Crie o gráfico de barras empilhadas
-fig = px.bar(df_agrupado, color='stateProvince', y='counts', x='ano', title='Contagem de Coletas por País (Empilhado por Ano)',
-             labels={'counts': 'Contagem de Coletas', 'country': 'País', 'year': 'Ano'},
-             barmode='stack')
-
-fig
-df_ano = df.copy()
-
-df_ano = df_ano[df_ano['country'] == 'Brasil']
-df_ano = df_ano[df_ano['stateProvince'] != 'Minas Gerais']
-df_agrupado = df_ano.groupby(['stateProvince', 'ano']).size().reset_index(name='counts')
-
-# Ordene os dados pelo ano
-df_agrupado = df_agrupado.sort_values(by='counts')
-
-# Crie o gráfico de barras empilhadas
-fig = px.bar(df_agrupado, color='stateProvince', y='counts', x='ano', title='Contagem de Coletas por País (Empilhado por Ano)',
-             labels={'counts': 'Contagem de Coletas', 'country': 'País', 'year': 'Ano'},
-             barmode='stack')
-
-fig
-
-# from dash_extensions import Plotly
 # Inicializar o aplicativo JupyterDash
 app = Dash(__name__)
 
@@ -347,24 +314,46 @@ app.layout = html.Div([
     dcc.Graph(id='equipe'),
 
     dcc.Graph(id='treemap_paises',figure=treemap_paises),
-    html.Div(id='output'),
+    html.Label("Selecione o País:"),
+    dcc.Dropdown(
+        id='country-filter',
+        options=[{'label': c, 'value': c} for c in df_agrupado_cole['country'].unique()],
+        value=df_agrupado_cole['country'].unique().tolist(),  # Valor padrão: todos os países
+        multi=True  # Permite seleção múltipla
+    ),    
     dcc.Graph(id='barras-country',clear_on_unhover=True),
-    dcc.Graph(
-        id='mapa',
-        # figure=Plotly(),
-        config={'displayModeBar': False}
-    )
+
+    html.Div(id='grafico-brasil-container', children=[
+        dcc.Dropdown(
+            id='state-filter',
+            options=[{'label': c, 'value': c} for c in df_state['stateProvince'].unique()],
+            value=df_state['stateProvince'].unique().tolist(),  # Valor padrão: todos os países
+            multi=True  # Permite seleção múltipla
+        ),
+        dcc.Graph(id='grafico-brasil',clear_on_unhover=True)
+    ]),
+    dash_table.DataTable(
+        id='table',
+        columns=[{"name": i, "id": i} for i in df.columns],
+        data=df.to_dict('records'),
+        page_size=10,  # Número de linhas por página
+        filter_action='native',
+        style_table={'overflowX': 'auto'},  # Permite rolagem horizontal
+        style_header={
+            'backgroundColor': 'lightgrey',
+            'fontWeight': 'bold'
+        },
+        style_cell={
+            'textAlign': 'left',
+            'padding': '5px',
+            'whiteSpace': 'normal',
+            'height': 'auto'
+        }
+    ),
 ])
 
 line_dropdown_value = 'all'
-# @app.callback(
-#     Output('mapa', 'figure'),
-#     [Input('tax-selector', 'value'),]
-# )
-# def update_map(tax_selector):
-#     # Chame sua função fazer_mapa() aqui para obter o HTML do mapa e renderizá-lo no Dash
-#     mapa_html = fazer_mapa()
-#     return {'data': [], 'layout': {'template': mapa_html}}
+
 @app.callback(
     [Output('line-tax-dropdown', 'options'),
      Output('line-tax-dropdown', 'value')],
@@ -387,14 +376,17 @@ def update_line_tax_dropdown(selected_tax):
      Output('coletores', 'figure'),
      Output('equipe', 'figure'),
      Output('barras-country', 'figure'),
-     Output('output', 'children')],
+     Output('grafico-brasil', 'figure'),
+     Output('grafico-brasil-container', 'style')],
     [Input('tax-selector', 'value'),
      Input('time-selector', 'value'),
      Input('line-tax-dropdown', 'value'),
      Input('barras-country', 'hoverData'),
-     Input('barras-country', 'clickData')]  
+     Input('grafico-brasil', 'hoverData'),
+     Input('country-filter', 'value'),
+     Input('state-filter', 'value')]
 )
-def update_figure(tax_selection, time_selection, line_tax_selection, hoverData, clickData):
+def update_figure(tax_selection, time_selection, line_tax_selection, hoverData, brasil_hoverData, selected_countries, selected_state):
     global current_tax_selection, current_time_selection, line_dropdown_value
     current_tax_selection = tax_selection
     current_time_selection = time_selection
@@ -404,23 +396,58 @@ def update_figure(tax_selection, time_selection, line_tax_selection, hoverData, 
         line_dropdown_value = line_tax_selection
 
     # Access the appropriate area_empilhada_dict entry and retrieve the figure
-    output_text = f'Selecionado: {line_tax_selection} - {clickData} {hoverData}'
+    # output_text = f'Selecionado: {line_tax_selection} - {clickData} {hoverData}'
     figure_to_return = area_empilhada_dict[tax_selection][time_selection]
     histograma_return = histograma_tax_dict[tax_selection]
     line_figure = linha_tax_dict[tax_selection][line_tax_selection] if line_tax_selection in linha_tax_dict[tax_selection] else linha_tax_dict[tax_selection]
     barras_coletores_return = barras_coletores_dict[time_selection]
     barras_equipe_return = barras_equipe_dict[time_selection]
-    barras_paises_return = barras_paises_dict[time_selection]
+
+    # Filtrar o gráfico de barras para os países selecionados
+    if time_selection == 'year':
+        df_agrupado_cole = df.groupby(['country', 'year']).size().reset_index(name='counts')
+        if selected_countries:
+            df_agrupado_cole = df_agrupado_cole[df_agrupado_cole['country'].isin(selected_countries)]
+        fig = px.bar(df_agrupado_cole, color='country', y='counts', x='year',
+                     title='Contagem de Coletas por País (Empilhado por Ano)',
+                     labels={'counts': 'Contagem de Coletas', 'country': 'País', 'year': 'Ano'},
+                     barmode='stack')
+    else:
+        df_agrupado_iden = df.groupby(['country', 'ano']).size().reset_index(name='counts')
+        if selected_countries:
+            df_agrupado_iden = df_agrupado_iden[df_agrupado_iden['country'].isin(selected_countries)]
+        fig = px.bar(df_agrupado_iden, color='country', y='counts', x='ano',
+                     title='Contagem de Coletas por País (Empilhado por Ano)',
+                     labels={'counts': 'Contagem de Coletas', 'country': 'País', 'ano': 'Ano'},
+                     barmode='stack')
 
     if hoverData and 'points' in hoverData:
         hovered_country = hoverData['points'][0]['curveNumber']
-        for trace in barras_paises_return.data:
+        for trace in fig.data:
             trace['marker']['opacity'] = 0.5
-        barras_paises_return.data[hovered_country]['marker']['opacity'] = 1.0
+        fig.data[hovered_country]['marker']['opacity'] = 1.0
     else:
-        for trace in barras_paises_return.data:
+        for trace in fig.data:
             trace['marker']['opacity'] = 1.0
 
-    return figure_to_return, histograma_return, line_figure, barras_coletores_return, barras_equipe_return, barras_paises_return, output_text
+    if 'Brasil' in selected_countries:
+        df_filtered_brasil = df_state[df_state['stateProvince'].isin(selected_state)]
+        grafico_brasil = create_brazil_bar_chart(df_filtered_brasil)
+        brasil_style = {'display': 'block'}
+        if brasil_hoverData and 'points' in brasil_hoverData:
+            hovered_index = brasil_hoverData['points'][0]['curveNumber']
+            for i, trace in enumerate(grafico_brasil.data):
+                if i == hovered_index:
+                    trace.marker.opacity = 1.0
+                else:
+                    trace.marker.opacity = 0.5
+        else:
+            for trace in grafico_brasil.data:
+                trace.marker.opacity = 1.0
+    else:
+        grafico_brasil = go.Figure()  # Gráfico vazio quando o Brasil não está selecionado
+        brasil_style = {'display': 'none'}
 
-app.run_server(debug=True, port=8051)
+    return figure_to_return, histograma_return, line_figure, barras_coletores_return, barras_equipe_return, fig, grafico_brasil, brasil_style
+
+app.run_server(debug=True, port=80)
