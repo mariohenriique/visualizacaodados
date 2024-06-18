@@ -451,5 +451,5 @@ def update_figure(tax_selection, time_selection, line_tax_selection, hoverData, 
     return figure_to_return, histograma_return, line_figure, barras_coletores_return, barras_equipe_return, fig, grafico_brasil, brasil_style
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8050))  # Use a porta da variável de ambiente
-    app.run_server(debug=True, host='0.0.0.0', port=port)  # Escuta em todas as interfaces
+    # port = int(os.environ.get('PORT', 8050))  # Use a porta da variável de ambiente
+    app.run_server(debug=True, host='0.0.0.0', port=10000)  # Escuta em todas as interfaces
