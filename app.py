@@ -449,5 +449,3 @@ def update_figure(tax_selection, time_selection, line_tax_selection, hoverData, 
         brasil_style = {'display': 'none'}
 
     return figure_to_return, histograma_return, line_figure, barras_coletores_return, barras_equipe_return, fig, grafico_brasil, brasil_style
-
-app.run_server(debug=True, port=80)
