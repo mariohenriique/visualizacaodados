@@ -68,8 +68,8 @@ def create_brazil_bar_chart(df):
         barmode='stack'
     )
     return fig_brasil
-
-df = pd.read_csv('planilha_unificada.csv',low_memory=False)
+url = 'https://raw.githubusercontent.com/mariohenriique/visualizacaodados/main/planilha_unificada_alterada.csv'
+df = pd.read_csv(url,low_memory=False)
 
 df['specie'] = df.apply(lambda row: row['genus'] + ' ' + row['specificEpithet'] if not pd.isna(row['genus']) and not pd.isna(row['specificEpithet']) else None, axis=1)
 
@@ -449,3 +449,6 @@ def update_figure(tax_selection, time_selection, line_tax_selection, hoverData, 
         brasil_style = {'display': 'none'}
 
     return figure_to_return, histograma_return, line_figure, barras_coletores_return, barras_equipe_return, fig, grafico_brasil, brasil_style
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
